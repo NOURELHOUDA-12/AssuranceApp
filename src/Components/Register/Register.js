@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebaseConfig";
-import { Link } from "react-router-dom";
-import "./Auth.css"; // même fichier CSS
+import { auth, db } from "../../firebaseConfig";
+import { doc, setDoc } from "firebase/firestore";
+import { Link, useNavigate } from "react-router-dom";
+import "./Auth.css";
 
 export default function Register() {
   const [nom, setNom] = useState("");
@@ -10,22 +11,34 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [identifiant, setIdentifiant] = useState("");
-  const [role, setRole] = useState("");
   const [error, setError] = useState("");
+
+  const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    if (!nom || !prenom || !email || !password || !identifiant || !role) {
+    if (!nom || !prenom || !email || !password || !identifiant) {
       setError("Veuillez remplir tous les champs !");
       return;
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      // Création de l'utilisateur
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Ajout des infos supplémentaires dans Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        nom,
+        prenom,
+        email,
+        identifiant,
+        createdAt: new Date(),
+      });
+
       alert("Compte créé avec succès !");
-      // Tu peux rediriger l'utilisateur vers login
-      // ex: navigate("/login");
+      navigate("/login"); // Redirection vers la page de connexion
     } catch (err) {
       setError(err.message);
     }

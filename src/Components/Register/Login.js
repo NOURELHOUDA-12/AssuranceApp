@@ -1,21 +1,38 @@
 import React, { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebaseConfig";
-import { Link } from "react-router-dom";
-import "./Auth.css"; // même fichier CSS
+import { auth, db } from "../../firebaseConfig"; // Assure-toi d'exporter db (Firestore) dans firebaseConfig.js
+import { Link, useNavigate } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import "./Auth.css";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      alert("Connexion réussie !");
-      // Ici, tu peux rediriger l'utilisateur vers une autre page après connexion
-      // ex: navigate("/dashboard");
+      // Authentification Firebase
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Récupération des infos de l'utilisateur dans Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+
+        console.log(userData.Role )
+        if (userData.Role === "agent") {
+          navigate("/espace-agent/dashboard");
+        } else {
+          navigate("/espace_client"); 
+        }
+      } else {
+        setError("Aucun rôle défini pour cet utilisateur.");
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -28,26 +45,28 @@ export default function Login() {
 
         {error && <p className="error">{error}</p>}
 
-        <input
-          type="email"
-          placeholder="Adresse email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+        <form onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Adresse email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <input
-          type="password"
-          placeholder="Mot de passe"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          <input
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <button type="submit" onClick={handleLogin}>Se connecter</button>
+          <button type="submit">Se connecter</button>
+        </form>
 
         <p className="redirect-text">
-          Pas encore de compte ?{" "}
+          Pas encore de compte ?
           <Link to="/register" className="redirect-link">
             Créez-en un ici
           </Link>
